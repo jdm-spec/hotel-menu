@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Restaurant Administration | L'Olivier & Sel</title>
+  <meta name="robots" content="noindex, nofollow">
+
+  <!-- Tailwind CSS via Official Play CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            linen: '#FAF8F5',
+            stonecream: '#F4EFEB',
+            charcoal: '#1C1917',
+            terracotta: {
+              DEFAULT: '#BC5437',
+              dark: '#9E3F25',
+              light: '#F8EBE7'
+            },
+            olive: {
+              DEFAULT: '#3E4F3E',
+              dark: '#2F3C2F',
+              light: '#EAF0EA'
+            },
+            borderstone: '#E7E2DA'
+          },
+          fontFamily: {
+            serif: ['"Playfair Display"', 'Georgia', 'serif'],
+            display: ['"Cinzel"', 'serif'],
+            sans: ['"Plus Jakarta Sans"', '-apple-system', 'BlinkMacSystemFont', 'sans-serif']
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Custom CSS -->
+  <link rel="stylesheet" href="css/styles.css">
+  <link rel="icon" type="image/svg+xml" href="assets/images/placeholder.svg">
+</head>
+<body class="bg-linen text-charcoal min-h-screen flex flex-col antialiased selection:bg-terracotta selection:text-white">
+
+  <!-- Auth Loading Screen (while checking Firebase auth state) -->
+  <div id="auth-loading-screen" class="fixed inset-0 z-50 bg-linen flex flex-col items-center justify-center p-4">
+    <div class="w-12 h-12 rounded-full border-2 border-borderstone border-t-terracotta animate-spin mb-4"></div>
+    <h2 class="font-serif font-bold text-lg text-charcoal">Verifying Restaurant Administrator Credentials</h2>
+    <p class="text-xs text-stone-500 mt-1">Connecting to Firebase Realtime Database...</p>
+  </div>
+
+  <!-- Unauthenticated Screen: Admin Login -->
+  <div id="login-view" class="hidden min-h-screen flex flex-col items-center justify-center p-4 sm:p-6">
+    <div class="w-full max-w-md bg-white rounded-3xl border border-borderstone p-8 shadow-xl">
+      
+      <!-- Logo & Title -->
+      <div class="text-center mb-8">
+        <div class="w-14 h-14 rounded-full border border-borderstone bg-stonecream flex items-center justify-center mx-auto mb-3 shadow-sm">
+          <span class="font-display font-bold text-terracotta text-lg">OS</span>
+        </div>
+        <h1 class="font-serif font-bold text-2xl text-charcoal tracking-tight">Staff &amp; Owner Portal</h1>
+        <p class="text-xs text-stone-500 mt-1">Secure access to digital menu management</p>
+      </div>
+
+      <!-- Login Form -->
+      <form id="admin-login-form" class="space-y-4">
+        <div>
+          <label for="login-email" class="block text-xs font-semibold text-stone-700 mb-1.5">Administrator Email</label>
+          <input 
+            type="email" 
+            id="login-email" 
+            required 
+            placeholder="admin@restaurant.com" 
+            class="w-full px-4 py-2.5 rounded-xl border border-borderstone text-xs sm:text-sm focus:outline-none focus:border-terracotta transition-colors"
+            autocomplete="email"
+          >
+        </div>
+
+        <div>
+          <div class="flex items-center justify-between mb-1.5">
+            <label for="login-password" class="block text-xs font-semibold text-stone-700">Password</label>
+            <button type="button" id="btn-forgot-password" class="text-[11px] text-terracotta hover:underline">Forgot password?</button>
+          </div>
+          <input 
+            type="password" 
+            id="login-password" 
+            required 
+            placeholder="••••••••••••" 
+            class="w-full px-4 py-2.5 rounded-xl border border-borderstone text-xs sm:text-sm focus:outline-none focus:border-terracotta transition-colors"
+            autocomplete="current-password"
+          >
+        </div>
+
+        <!-- Inline Error Message -->
+        <div id="login-error-alert" class="hidden p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-start gap-2">
+          <svg class="w-4 h-4 flex-shrink-0 text-rose-600 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+          <span id="login-error-text">Authentication failed.</span>
+        </div>
+
+        <button 
+          type="submit" 
+          id="btn-login-submit" 
+          class="w-full py-3 px-4 rounded-xl bg-charcoal hover:bg-stone-800 text-white font-semibold text-xs tracking-wide transition-all shadow-md flex items-center justify-center gap-2"
+        >
+          <span>Sign In to Admin Console</span>
+        </button>
+      </form>
+
+      <!-- Back to public menu -->
+      <div class="mt-8 pt-6 border-t border-borderstone text-center flex items-center justify-between text-xs text-stone-500">
+        <a href="index.html" class="hover:text-terracotta transition-colors">&larr; Back to Public Menu</a>
+        <button id="btn-show-firebase-setup-help" type="button" class="text-terracotta hover:underline">Setup Guide</button>
+      </div>
+
+    </div>
+
+    <!-- Firebase Help Box -->
+    <div id="firebase-help-box" class="hidden mt-6 max-w-md w-full p-4 bg-stonecream rounded-2xl border border-borderstone text-xs text-stone-600 space-y-2">
+      <div class="flex items-center justify-between font-bold text-charcoal">
+        <span>Firebase Setup Checklist</span>
+        <button id="btn-close-help-box" class="text-stone-400 hover:text-stone-700">&times;</button>
+      </div>
+      <ol class="list-decimal list-inside space-y-1 text-[11px] leading-relaxed">
+        <li>Create a project in <strong>Firebase Console</strong>.</li>
+        <li>Enable <strong>Email/Password Authentication</strong> under Build &gt; Authentication.</li>
+        <li>Create a <strong>Realtime Database</strong> under Build &gt; Realtime Database.</li>
+        <li>Publish rules from <code class="bg-white px-1 rounded">database.rules.json</code>.</li>
+        <li>Add an initial admin user in Firebase Authentication and log in here.</li>
+      </ol>
+    </div>
+  </div>
+
+  <!-- Authenticated Screen: Admin Dashboard & Management Console -->
+  <div id="admin-app-view" class="hidden min-h-screen flex flex-col">
+    
+    <!-- Top Admin Bar -->
+    <header class="sticky top-0 z-40 bg-white border-b border-borderstone shadow-sm">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <div class="w-8 h-8 rounded-full border border-borderstone bg-stonecream flex items-center justify-center font-display font-bold text-terracotta text-xs">
+            OS
+          </div>
+          <div>
+            <h2 id="admin-topbar-restaurant-name" class="font-serif font-bold text-base text-charcoal leading-none">
+              L'Olivier &amp; Sel
+            </h2>
+            <span class="text-[10px] text-emerald-700 font-semibold uppercase tracking-wider">Restaurant Administrator</span>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-3">
+          <a href="index.html" target="_blank" class="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-borderstone text-xs font-semibold text-stone-600 hover:bg-stonecream transition-colors">
+            <span>View Live Menu</span>
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
+          </a>
+          <button id="btn-admin-logout" type="button" class="px-3 py-1.5 rounded-lg bg-stone-100 hover:bg-stone-200 text-stone-700 text-xs font-semibold transition-colors flex items-center gap-1.5">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
+            <span>Log Out</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Navigation Tabs -->
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 flex items-center gap-1 overflow-x-auto no-scrollbar border-t border-borderstone/50 text-xs font-medium">
+        <button type="button" data-tab="dashboard" class="admin-nav-tab active px-4 py-2.5 border-b-2 border-terracotta text-terracotta font-semibold whitespace-nowrap">
+          Overview &amp; Metrics
+        </button>
+        <button type="button" data-tab="dishes" class="admin-nav-tab px-4 py-2.5 border-b-2 border-transparent text-stone-600 hover:text-charcoal whitespace-nowrap">
+          Menu Items &amp; Dishes
+        </button>
+        <button type="button" data-tab="categories" class="admin-nav-tab px-4 py-2.5 border-b-2 border-transparent text-stone-600 hover:text-charcoal whitespace-nowrap">
+          Categories
+        </button>
+        <button type="button" data-tab="settings" class="admin-nav-tab px-4 py-2.5 border-b-2 border-transparent text-stone-600 hover:text-charcoal whitespace-nowrap">
+          Restaurant Settings
+        </button>
+      </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-6 sm:py-8">
+
+      <!-- ================= TAB 1: DASHBOARD OVERVIEW ================= -->
+      <section id="tab-dashboard" class="admin-tab-pane space-y-6">
+        
+        <!-- Welcome Banner with Quick Actions -->
+        <div class="bg-stonecream rounded-3xl border border-borderstone p-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <h3 class="font-serif font-bold text-2xl text-charcoal">Restaurant Command Center</h3>
+            <p class="text-xs text-stone-600 mt-1 max-w-lg leading-relaxed">
+              All menu modifications and category edits sync immediately with the live customer digital menu via Firebase Realtime Database.
+            </p>
+          </div>
+          <div class="flex flex-wrap items-center gap-2">
+            <button type="button" id="btn-quick-add-dish" class="px-4 py-2 rounded-xl bg-terracotta hover:bg-terracotta-dark text-white text-xs font-semibold transition-all shadow-sm flex items-center gap-1.5">
+              <span>+ Add New Dish</span>
+            </button>
+            <button type="button" id="btn-quick-add-category" class="px-4 py-2 rounded-xl bg-white border border-borderstone hover:bg-stone-50 text-charcoal text-xs font-semibold transition-all shadow-sm flex items-center gap-1.5">
+              <span>+ Add Category</span>
+            </button>
+            <button type="button" id="btn-seed-sample-data" class="px-4 py-2 rounded-xl bg-stone-200 hover:bg-stone-300 text-stone-800 text-xs font-semibold transition-all shadow-sm flex items-center gap-1.5" title="Seed default boutique menu if database is empty">
+              <span>🌱 Seed Sample Menu</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Metric Stat Cards -->
+        <div class="grid grid-cols-2 lg:grid-cols-5 gap-4">
+          <div class="bg-white rounded-2xl border border-borderstone p-5">
+            <span class="text-xs text-stone-500 font-medium">Total Courses</span>
+            <div id="stat-total-categories" class="font-serif font-bold text-3xl text-charcoal mt-1">0</div>
+          </div>
+          <div class="bg-white rounded-2xl border border-borderstone p-5">
+            <span class="text-xs text-stone-500 font-medium">Total Dishes</span>
+            <div id="stat-total-dishes" class="font-serif font-bold text-3xl text-charcoal mt-1">0</div>
+          </div>
+          <div class="bg-white rounded-2xl border border-borderstone p-5">
+            <span class="text-xs text-emerald-700 font-medium flex items-center gap-1">
+              <span class="w-2 h-2 rounded-full bg-emerald-500"></span> Available
+            </span>
+            <div id="stat-active-dishes" class="font-serif font-bold text-3xl text-emerald-800 mt-1">0</div>
+          </div>
+          <div class="bg-white rounded-2xl border border-borderstone p-5">
+            <span class="text-xs text-rose-700 font-medium flex items-center gap-1">
+              <span class="w-2 h-2 rounded-full bg-rose-500"></span> Sold Out
+            </span>
+            <div id="stat-soldout-dishes" class="font-serif font-bold text-3xl text-rose-800 mt-1">0</div>
+          </div>
+          <div class="bg-white rounded-2xl border border-borderstone p-5 col-span-2 lg:col-span-1">
+            <span class="text-xs text-amber-700 font-medium flex items-center gap-1">
+              <span>★</span> Chef's Specials
+            </span>
+            <div id="stat-featured-dishes" class="font-serif font-bold text-3xl text-amber-800 mt-1">0</div>
+          </div>
+        </div>
+
+        <!-- Quick Dishes Preview Table -->
+        <div class="bg-white rounded-3xl border border-borderstone overflow-hidden shadow-sm">
+          <div class="p-5 border-b border-borderstone flex items-center justify-between">
+            <div>
+              <h4 class="font-serif font-bold text-lg text-charcoal">Recent Menu Items</h4>
+              <p class="text-xs text-stone-500">Instant availability toggle and fast edits</p>
+            </div>
+            <button type="button" data-tab-trigger="dishes" class="text-xs font-semibold text-terracotta hover:underline">
+              View All Dishes &rarr;
+            </button>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs">
+              <thead class="bg-stonecream/60 border-b border-borderstone text-stone-500 uppercase tracking-wider text-[10px]">
+                <tr>
+                  <th class="py-3 px-4">Dish</th>
+                  <th class="py-3 px-4">Category</th>
+                  <th class="py-3 px-4">Price</th>
+                  <th class="py-3 px-4">Status</th>
+                  <th class="py-3 px-4 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="dashboard-recent-dishes-table" class="divide-y divide-borderstone">
+                <!-- Injected via admin-dashboard.js -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </section>
+
+      <!-- ================= TAB 2: MENU ITEMS (DISHES) MANAGEMENT ================= -->
+      <section id="tab-dishes" class="admin-tab-pane hidden space-y-6">
+        
+        <!-- Header Controls: Search, Category Filter, Add Button -->
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div class="flex flex-1 items-center gap-2 max-w-md">
+            <input 
+              type="search" 
+              id="admin-dish-search" 
+              placeholder="Search dishes..." 
+              class="w-full px-3.5 py-2 bg-white border border-borderstone rounded-xl text-xs focus:outline-none focus:border-terracotta"
+            >
+            <select id="admin-dish-category-filter" class="px-3 py-2 bg-white border border-borderstone rounded-xl text-xs focus:outline-none focus:border-terracotta">
+              <option value="all">All Categories</option>
+            </select>
+          </div>
+          <button type="button" id="btn-open-add-dish-modal" class="px-4 py-2.5 rounded-xl bg-terracotta hover:bg-terracotta-dark text-white text-xs font-semibold transition-all shadow-sm flex items-center justify-center gap-1.5">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+            <span>Add Menu Item</span>
+          </button>
+        </div>
+
+        <!-- Dishes Table Card -->
+        <div class="bg-white rounded-3xl border border-borderstone overflow-hidden shadow-sm">
+          <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs">
+              <thead class="bg-stonecream/60 border-b border-borderstone text-stone-500 uppercase tracking-wider text-[10px]">
+                <tr>
+                  <th class="py-3 px-4 w-16">Image</th>
+                  <th class="py-3 px-4">Name &amp; Description</th>
+                  <th class="py-3 px-4">Category</th>
+                  <th class="py-3 px-4">Type</th>
+                  <th class="py-3 px-4">Price</th>
+                  <th class="py-3 px-4">Availability</th>
+                  <th class="py-3 px-4 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="admin-dishes-table-body" class="divide-y divide-borderstone">
+                <!-- Dynamically populated -->
+              </tbody>
+            </table>
+          </div>
+          <div id="admin-dishes-empty-message" class="hidden p-12 text-center text-xs text-stone-500">
+            No dishes found matching your criteria. Click "Add Menu Item" above to publish your first dish.
+          </div>
+        </div>
+
+      </section>
+
+      <!-- ================= TAB 3: CATEGORY MANAGEMENT ================= -->
+      <section id="tab-categories" class="admin-tab-pane hidden space-y-6">
+        
+        <div class="flex items-center justify-between">
+          <div>
+            <h3 class="font-serif font-bold text-xl text-charcoal">Menu Categories</h3>
+            <p class="text-xs text-stone-500">Organize dishes into courses (Starters, Mains, Desserts, Beverages)</p>
+          </div>
+          <button type="button" id="btn-open-add-category-modal" class="px-4 py-2.5 rounded-xl bg-charcoal hover:bg-stone-800 text-white text-xs font-semibold transition-all shadow-sm flex items-center gap-1.5">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+            <span>Create Category</span>
+          </button>
+        </div>
+
+        <!-- Categories Table Card -->
+        <div class="bg-white rounded-3xl border border-borderstone overflow-hidden shadow-sm">
+          <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs">
+              <thead class="bg-stonecream/60 border-b border-borderstone text-stone-500 uppercase tracking-wider text-[10px]">
+                <tr>
+                  <th class="py-3 px-4 w-16">Order</th>
+                  <th class="py-3 px-4">Category Name</th>
+                  <th class="py-3 px-4">Description</th>
+                  <th class="py-3 px-4">Dishes Count</th>
+                  <th class="py-3 px-4">Status</th>
+                  <th class="py-3 px-4 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="admin-categories-table-body" class="divide-y divide-borderstone">
+                <!-- Dynamically populated -->
+              </tbody>
+            </table>
+          </div>
+          <div id="admin-categories-empty-message" class="hidden p-12 text-center text-xs text-stone-500">
+            No categories created yet. Click "Create Category" to begin structuring your menu.
+          </div>
+        </div>
+
+      </section>
+
+      <!-- ================= TAB 4: RESTAURANT PROFILE & SETTINGS ================= -->
+      <section id="tab-settings" class="admin-tab-pane hidden max-w-4xl space-y-6">
+        
+        <div class="bg-white rounded-3xl border border-borderstone p-6 sm:p-8 shadow-sm">
+          <h3 class="font-serif font-bold text-2xl text-charcoal mb-1">Restaurant Profile &amp; Settings</h3>
+          <p class="text-xs text-stone-500 mb-6">Manage brand identity, contact details, currency, and service hours</p>
+
+          <form id="form-restaurant-settings" class="space-y-6">
+            
+            <!-- Basic Brand Details -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label class="block text-xs font-semibold text-stone-700 mb-1">Restaurant Name *</label>
+                <input type="text" id="setting-name" required class="w-full px-3.5 py-2 rounded-xl border border-borderstone text-xs focus:outline-none focus:border-terracotta">
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-stone-700 mb-1">Currency Symbol *</label>
+                <input type="text" id="setting-currency" required placeholder="$ or ₹ or € or £" class="w-full px-3.5 py-2 rounded-xl border border-borderstone text-xs focus:outline-none focus:border-terracotta">
+              </div>
+              <div class="sm:col-span-2">
+                <label class="block text-xs font-semibold text-stone-700 mb-1">Tagline / Sub-heading</label>
+                <input type="text" id="setting-tagline" class="w-full px-3.5 py-2 rounded-xl border border-borderstone text-xs focus:outline-none focus:border-terracotta">
+              </div>
+              <div class="sm:col-span-2">
+                <label class="block text-xs font-semibold text-stone-700 mb-1">About / Story Description</label>
+                <textarea id="setting-description" rows="3" class="w-full px-3.5 py-2 rounded-xl border border-borderstone text-xs focus:outline-none focus:border-terracotta"></textarea>
+              </div>
+            </div>
+
+            <!-- Contact & Location -->
+            <div class="pt-4 border-t border-borderstone grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label class="block text-xs font-semibold text-stone-700 mb-1">Telephone Contact</label>
+                <input type="text" id="setting-phone" class="w-full px-3.5 py-2 rounded-xl border border-borderstone text-xs focus:outline-none focus:border-terracotta">
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-stone-700 mb-1">WhatsApp Ordering Number</label>
+                <input type="text" id="setting-whatsapp" placeholder="+15551234567" class="w-full px-3.5 py-2 rounded-xl border border-borderstone text-xs focus:outline-none focus:border-terracotta">
+              </div>
+              <div class="sm:col-span-2">
+                <label class="block text-xs font-semibold text-stone-700 mb-1">Physical Address / Location</label>
+                <input type="text" id="setting-address" class="w-full px-3.5 py-2 rounded-xl border border-borderstone text-xs focus:outline-none focus:border-terracotta">
+              </div>
+            </div>
+
+            <!-- Media URLs -->
+            <div class="pt-4 border-t border-borderstone grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label class="block text-xs font-semibold text-stone-700 mb-1">Logo Image URL</label>
+                <input type="url" id="setting-logo-url" placeholder="https://..." class="w-full px-3.5 py-2 rounded-xl border border-borderstone text-xs focus:outline-none focus:border-terracotta">
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-stone-700 mb-1">Hero Cover Image URL</label>
+                <input type="url" id="setting-cover-url" placeholder="https://..." class="w-full px-3.5 py-2 rounded-xl border border-borderstone text-xs focus:outline-none focus:border-terracotta">
+              </div>
+            </div>
+
+            <!-- Social Media -->
+            <div class="pt-4 border-t border-borderstone grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div>
+                <label class="block text-xs font-semibold text-stone-700 mb-1">Instagram URL</label>
+                <input type="url" id="setting-social-instagram" class="w-full px-3.5 py-2 rounded-xl border border-borderstone text-xs focus:outline-none focus:border-terracotta">
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-stone-700 mb-1">Facebook URL</label>
+                <input type="url" id="setting-social-facebook" class="w-full px-3.5 py-2 rounded-xl border border-borderstone text-xs focus:outline-none focus:border-terracotta">
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-stone-700 mb-1">Google Maps Link</label>
+                <input type="url" id="setting-social-maps" class="w-full px-3.5 py-2 rounded-xl border border-borderstone text-xs focus:outline-none focus:border-terracotta">
+              </div>
+            </div>
+
+            <!-- Opening Hours Grid -->
+            <div class="pt-4 border-t border-borderstone">
+              <label class="block text-xs font-bold text-stone-800 mb-2">Weekly Service Hours</label>
+              <div id="settings-hours-container" class="space-y-2 bg-stonecream/50 p-4 rounded-2xl border border-borderstone">
+                <!-- Injected via admin-dashboard.js -->
+              </div>
+            </div>
+
+            <!-- Save Button -->
+            <div class="pt-4 border-t border-borderstone flex justify-end">
+              <button type="submit" id="btn-save-settings" class="px-6 py-2.5 rounded-xl bg-charcoal hover:bg-stone-800 text-white text-xs font-semibold transition-all shadow-md">
+                Save Restaurant Settings
+              </button>
+            </div>
+
+          </form>
+        </div>
+
+      </section>
+
+    </main>
+
+  </div>
+
+  <!-- ================= MODALS ================= -->
+
+  <!-- Add / Edit Dish Modal -->
+  <div id="modal-dish-editor" class="modal-backdrop fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" role="dialog" aria-modal="true">
+    <div class="modal-content-wrapper bg-white w-full max-w-xl rounded-3xl border border-borderstone overflow-hidden shadow-2xl max-h-[92vh] flex flex-col">
+      <div class="p-6 border-b border-borderstone flex items-center justify-between">
+        <h3 id="dish-modal-title" class="font-serif font-bold text-xl text-charcoal">Add New Dish</h3>
+        <button type="button" id="btn-close-dish-editor" class="p-2 rounded-full hover:bg-stonecream text-stone-400 hover:text-stone-700">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+        </button>
+      </div>
+
+      <form id="form-dish-editor" class="p-6 overflow-y-auto space-y-4">
+        <input type="hidden" id="dish-edit-id">
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div class="sm:col-span-2">
+            <label class="block text-xs font-semibold text-stone-700 mb-1">Dish Name *</label>
+            <input type="text" id="dish-form-name" required placeholder="e.g. Heirloom Burrata Pugliese" class="w-full px-3.5 py-2 rounded-xl border border-borderstone text-xs focus:outline-none focus:border-terracotta">
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold text-stone-700 mb-1">Category *</label>
+            <select id="dish-form-category" required class="w-full px-3.5 py-2 rounded-xl border border-borderstone text-xs focus:outline-none focus:border-terracotta">
+              <!-- Injected from categories -->
+            </select>
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold text-stone-700 mb-1">Food Type *</label>
+            <select id="dish-form-foodtype" required class="w-full px-3.5 py-2 rounded-xl border border-borderstone text-xs focus:outline-none focus:border-terracotta">
+              <option value="veg">🌱 Vegetarian (Veg)</option>
+              <option value="non-veg">🍗 Non-Vegetarian</option>
+              <option value="vegan">🌿 Vegan (100% Plant-Based)</option>
+              <option value="egg">🥚 Contains Egg</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold text-stone-700 mb-1">Price *</label>
+            <input type="number" id="dish-form-price" step="0.01" min="0" required placeholder="18.00" class="w-full px-3.5 py-2 rounded-xl border border-borderstone text-xs focus:outline-none focus:border-terracotta">
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold text-stone-700 mb-1">Original Price (Optional strikethrough)</label>
+            <input type="number" id="dish-form-original-price" step="0.01" min="0" placeholder="22.00" class="w-full px-3.5 py-2 rounded-xl border border-borderstone text-xs focus:outline-none focus:border-terracotta">
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold text-stone-700 mb-1">Spice Level</label>
+            <select id="dish-form-spice" class="w-full px-3.5 py-2 rounded-xl border border-borderstone text-xs focus:outline-none focus:border-terracotta">
+              <option value="0">0 - Mild / None</option>
+              <option value="1">1 - Subtle Warmth 🌶️</option>
+              <option value="2">2 - Medium Spice 🌶️🌶️</option>
+              <option value="3">3 - Fiery Hot 🌶️🌶️🌶️</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold text-stone-700 mb-1">Sort Order</label>
+            <input type="number" id="dish-form-sort" value="1" min="1" class="w-full px-3.5 py-2 rounded-xl border border-borderstone text-xs focus:outline-none focus:border-terracotta">
+          </div>
+
+          <div class="sm:col-span-2">
+            <label class="block text-xs font-semibold text-stone-700 mb-1">Image URL</label>
+            <input type="url" id="dish-form-image" placeholder="https://images.unsplash.com/..." class="w-full px-3.5 py-2 rounded-xl border border-borderstone text-xs focus:outline-none focus:border-terracotta">
+            <div id="dish-image-preview-container" class="mt-2 hidden">
+              <span class="text-[10px] text-stone-400 block mb-1">Image Preview:</span>
+              <img id="dish-image-preview" src="" alt="Preview" class="h-20 w-32 object-cover rounded-lg border border-borderstone">
+            </div>
+          </div>
+
+          <div class="sm:col-span-2">
+            <label class="block text-xs font-semibold text-stone-700 mb-1">Description</label>
+            <textarea id="dish-form-description" rows="2" placeholder="Ingredients, preparation details, accompaniments..." class="w-full px-3.5 py-2 rounded-xl border border-borderstone text-xs focus:outline-none focus:border-terracotta"></textarea>
+          </div>
+
+          <div class="sm:col-span-2">
+            <label class="block text-xs font-semibold text-stone-700 mb-1">Chef's Notes &amp; Allergens (Optional)</label>
+            <input type="text" id="dish-form-notes" placeholder="Contains dairy, nuts. Gluten-free alternative available." class="w-full px-3.5 py-2 rounded-xl border border-borderstone text-xs focus:outline-none focus:border-terracotta">
+          </div>
+
+          <!-- Toggles: Featured & Available -->
+          <div class="sm:col-span-2 flex flex-wrap items-center gap-6 pt-2">
+            <label class="flex items-center gap-2 cursor-pointer text-xs font-semibold text-stone-700">
+              <input type="checkbox" id="dish-form-featured" class="w-4 h-4 rounded text-terracotta focus:ring-terracotta">
+              <span>⭐ Feature as Chef's Special</span>
+            </label>
+            <label class="flex items-center gap-2 cursor-pointer text-xs font-semibold text-stone-700">
+              <input type="checkbox" id="dish-form-available" checked class="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500">
+              <span>Currently Available (In Stock)</span>
+            </label>
+          </div>
+
+        </div>
+
+        <div class="pt-4 border-t border-borderstone flex justify-end gap-2">
+          <button type="button" id="btn-cancel-dish-editor" class="px-4 py-2 rounded-xl border border-borderstone text-xs font-medium text-stone-600 hover:bg-stonecream">
+            Cancel
+          </button>
+          <button type="submit" id="btn-submit-dish-editor" class="px-5 py-2 rounded-xl bg-terracotta hover:bg-terracotta-dark text-white text-xs font-semibold shadow-sm">
+            Save Dish
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Add / Edit Category Modal -->
+  <div id="modal-category-editor" class="modal-backdrop fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" role="dialog" aria-modal="true">
+    <div class="modal-content-wrapper bg-white w-full max-w-md rounded-3xl border border-borderstone overflow-hidden shadow-2xl p-6">
+      <div class="flex items-center justify-between pb-4 border-b border-borderstone mb-4">
+        <h3 id="category-modal-title" class="font-serif font-bold text-lg text-charcoal">Create Category</h3>
+        <button type="button" id="btn-close-category-editor" class="p-1.5 rounded-full hover:bg-stonecream text-stone-400 hover:text-stone-700">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+        </button>
+      </div>
+
+      <form id="form-category-editor" class="space-y-4">
+        <input type="hidden" id="category-edit-id">
+
+        <div>
+          <label class="block text-xs font-semibold text-stone-700 mb-1">Category Name *</label>
+          <input type="text" id="category-form-name" required placeholder="e.g. Artisanal Pasta &amp; Hearth" class="w-full px-3.5 py-2 rounded-xl border border-borderstone text-xs focus:outline-none focus:border-terracotta">
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-stone-700 mb-1">Description (Optional)</label>
+          <input type="text" id="category-form-description" placeholder="Short summary displayed on menu" class="w-full px-3.5 py-2 rounded-xl border border-borderstone text-xs focus:outline-none focus:border-terracotta">
+        </div>
+
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block text-xs font-semibold text-stone-700 mb-1">Display Sort Order</label>
+            <input type="number" id="category-form-sort" value="1" min="1" class="w-full px-3.5 py-2 rounded-xl border border-borderstone text-xs focus:outline-none focus:border-terracotta">
+          </div>
+          <div class="flex items-center pt-5">
+            <label class="flex items-center gap-2 cursor-pointer text-xs font-semibold text-stone-700">
+              <input type="checkbox" id="category-form-active" checked class="w-4 h-4 rounded text-emerald-600">
+              <span>Active</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="pt-4 border-t border-borderstone flex justify-end gap-2">
+          <button type="button" id="btn-cancel-category-editor" class="px-4 py-2 rounded-xl border border-borderstone text-xs font-medium text-stone-600 hover:bg-stonecream">
+            Cancel
+          </button>
+          <button type="submit" class="px-5 py-2 rounded-xl bg-charcoal hover:bg-stone-800 text-white text-xs font-semibold shadow-sm">
+            Save Category
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Delete Confirmation Modal -->
+  <div id="modal-delete-confirm" class="modal-backdrop fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" role="dialog" aria-modal="true">
+    <div class="modal-content-wrapper bg-white w-full max-w-sm rounded-3xl border border-borderstone overflow-hidden shadow-2xl p-6 text-center">
+      <div class="w-12 h-12 rounded-full bg-rose-50 border border-rose-200 text-rose-700 flex items-center justify-center mx-auto mb-3">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+      </div>
+      <h3 id="delete-modal-title" class="font-serif font-bold text-lg text-charcoal mb-1">Confirm Deletion</h3>
+      <p id="delete-modal-message" class="text-xs text-stone-600 mb-6 leading-relaxed">
+        Are you sure you want to permanently delete this item? This action cannot be reversed.
+      </p>
+      <div class="flex justify-center gap-3">
+        <button type="button" id="btn-cancel-delete" class="w-1/2 py-2.5 rounded-xl border border-borderstone text-xs font-medium text-stone-600 hover:bg-stonecream">
+          Cancel
+        </button>
+        <button type="button" id="btn-confirm-delete" class="w-1/2 py-2.5 rounded-xl bg-rose-700 hover:bg-rose-800 text-white text-xs font-semibold shadow-sm">
+          Yes, Delete
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Admin Application Logic -->
+  <script type="module" src="js/admin-dashboard.js"></script>
+
+</body>
+</html>
+

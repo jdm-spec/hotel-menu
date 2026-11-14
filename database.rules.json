@@ -1,0 +1,30 @@
+{
+  "rules": {
+    "restaurant": {
+      ".read": true,
+      ".write": "auth != null && root.child('admins').child(auth.uid).child('active').val() === true"
+    },
+    "categories": {
+      ".read": true,
+      ".write": "auth != null && root.child('admins').child(auth.uid).child('active').val() === true",
+      "$category_id": {
+        ".validate": "newData.hasChildren(['name', 'sortOrder', 'active']) && newData.child('name').isString() && newData.child('name').val().length > 0 && newData.child('sortOrder').isNumber() && newData.child('active').isBoolean()"
+      }
+    },
+    "menuItems": {
+      ".read": true,
+      ".write": "auth != null && root.child('admins').child(auth.uid).child('active').val() === true",
+      "$item_id": {
+        ".validate": "newData.hasChildren(['name', 'price', 'categoryId', 'available']) && newData.child('name').isString() && newData.child('name').val().length > 0 && newData.child('price').isNumber() && newData.child('price').val() >= 0 && newData.child('categoryId').isString() && newData.child('available').isBoolean()"
+      }
+    },
+    "admins": {
+      ".read": "auth != null",
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": "auth != null && (root.child('admins').child(auth.uid).child('active').val() === true || !data.exists() && !root.child('admins').exists())"
+      }
+    }
+  }
+}
+
